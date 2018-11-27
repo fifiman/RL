@@ -10,10 +10,27 @@ import numpy as np
 from keras.models import Sequential, load_model
 from keras.layers import *
 from keras.optimizers import *
+from keras import backend as K
+
+import tensorflow as tf
 
 from SumTree import SumTree
 
 MODEL_PATH = 'CartPole-v0.h5'
+
+
+HUBER_LOSS_DELTA = 1.0
+
+def huber_loss(y_true, y_pred):
+    err = y_true - y_pred
+
+    cond = K.abs(err) < HUBER_LOSS_DELTA
+    L2 = 0.5 * K.square(err)
+    L1 = HUBER_LOSS_DELTA * (K.abs(err) - 0.5 * HUBER_LOSS_DELTA)
+
+    loss = tf.where(cond, L2, L1)   # Keras does not cover where function in tensorflow :-(
+
+    return K.mean(loss)
 
 class Brain:
 
@@ -34,7 +51,7 @@ class Brain:
         model.add(Dense(output_dim=action_size, activation='linear'))
 
         opt = Adam()
-        model.compile(loss='mse', optimizer=opt)
+        model.compile(loss=huber_loss, optimizer=opt)
 
         return model
 
