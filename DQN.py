@@ -227,7 +227,10 @@ class Environment:
 
         self.episodes = 0
 
-    def run(self, agent, render=True):
+        self.rewards = []
+        self.startQFunc = []
+
+    def run(self, agent, render=True, trackStats=False):
         s = self.env.reset()
         R = 0
 
@@ -243,7 +246,7 @@ class Environment:
                 s_ = None
 
             agent.observe( (s, a, r, s_) )
-            agent.replay()            
+            agent.replay()          
 
             s = s_
             R += r
@@ -251,12 +254,20 @@ class Environment:
             if done:
                 break
 
+        if trackStats:
+            self.rewards.append(r)
+
+            zero_state = np.zeros(self.env.observation_space.shape[0])
+            self.startQFunc.append(agent.brain.predictOne(zero_state))
+
+
         self.episodes += 1
 
         print(f'Episode {self.episodes} rewards: {R}')
 
 
 TRAIN_AND_SAVE_MODEL = True
+TRACK_STATS = True
 TEST_MODEL = True
 
 
@@ -292,13 +303,19 @@ if __name__ == '__main__':
             print('Saving model')
             agent.brain.model.save(MODEL_PATH)
 
+            if TRACK_STATS:
+                print('Saving stats.')
+
+                import pickle
+                pickle.dump((env.rewards, env.startQFunc), open( "stats.p", "wb" ))
+
         sys.exit(0)
 
     signal.signal(signal.SIGTSTP, SIGTSTP_handler)
 
     try:
         while True:
-            env.run(agent)
+            env.run(agent, trackStats=TRACK_STATS)
     except Exception as e:
         print(traceback.format_exc())
     finally:
